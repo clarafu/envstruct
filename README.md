@@ -1,10 +1,11 @@
 # envstruct
 
-## What is envstruct
 Library to parse env into a struct
 
+## What is envstruct
+
 It supports all basic parsing of environment variables into the struct object
-given. A couple of examples of it's usage is that you would pass in the following struct:
+given. An example of it's usage is that you would pass in the following struct:
 
 ```go
 type MyStruct struct {
@@ -12,7 +13,7 @@ type MyStruct struct {
 }
 ```
 
-Envstruct will then fetch the environment variable `FIELD`, parse it and set it
+`envstruct` will then fetch the environment variable `FIELD`, parse it and set it
 back into your struct. So if you had `FIELD=foo` set as an envionment variable,
 the result will be:
 
@@ -47,7 +48,7 @@ fetch the environment variable.
 You can use `envstruct` by first configuring a few settings.
 
 | Settings      | Desciptions           
-| ------------- |:-------------:
+| ------------- |-------------
 | Prefix        | Optional and if set, is used as the prefix to any environment variable fetching. For example, if we are fetching env string `FIELD1` and we have prefix set to `BAR`, then `BAR_FIELD1` will be used to fetch the environment variable.
 | TagName       | Used for fetching the tag value from the field.     
 | Delimiter     | Used as the separater for multiple values within a struct or map. It is defaulted to a comma `,`. It is used so that in the environment variable, there can exist slices such as `PREFIX_FIELD=foo,bar`.
@@ -56,18 +57,18 @@ You can use `envstruct` by first configuring a few settings.
 Then you call `FetchEnv` off of `envstruct`.
 
 ```go
-			env := envstruct.New("prefix", "tag", envstruct.Parser{Delimiter: ",", Unmarshaler: yaml.Unmarshal})
+env := envstruct.New("prefix", "tag", envstruct.Parser{Delimiter: ",", Unmarshaler: yaml.Unmarshal})
 
-      type Example struct {
-        Field string `tag:"field"`
-      }
+type Example struct {
+  Field string `tag:"field"`
+}
 
-      mystruct := &Example{}
+mystruct := &Example{}
 
-			err := env.FetchEnv(mystruct)
-      if err != nil {
-        return nil
-      }
+err := env.FetchEnv(mystruct)
+if err != nil {
+  return nil
+}
 ```
 
 From the example above, if the environment variable `PREFIX_FIELD=foo` was set
