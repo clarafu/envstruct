@@ -27,9 +27,10 @@ type EnvstructSuite struct {
 type EnvstructTest struct {
 	It string
 
-	Prefix    string
-	TagName   string
-	Delimiter string
+	Prefix       string
+	TagName      string
+	OverrideName string
+	Delimiter    string
 
 	EnvValues map[string]interface{}
 
@@ -67,6 +68,28 @@ func (s *EnvstructSuite) TestEnvstruct() {
 			}{
 				Field1: "value",
 				Field3: 3,
+			},
+		},
+		{
+			It: "continues to fetch fields even if env is not found",
+
+			Prefix:  "prefix",
+			TagName: "tag",
+
+			EnvValues: map[string]interface{}{
+				"PREFIX_FIELD2": "value",
+			},
+
+			TestStruct: &struct {
+				Field1 string `tag:"field1"`
+				Field2 string `tag:"field2"`
+			}{},
+
+			ResultStruct: &struct {
+				Field1 string `tag:"field1"`
+				Field2 string `tag:"field2"`
+			}{
+				Field2: "value",
 			},
 		},
 		{
@@ -374,9 +397,75 @@ func (s *EnvstructSuite) TestEnvstruct() {
 				},
 			},
 		},
+		{
+			It: "uses the override tag name with no prefix or nesting to fetch the env",
+
+			Prefix:       "prefix",
+			TagName:      "tag",
+			OverrideName: "override",
+
+			EnvValues: map[string]interface{}{
+				"PREFIX_NESTED_NESTED2_FIELD": "nestedvalue",
+				"override_field":              "overridevalue",
+			},
+
+			TestStruct: &struct {
+				NestedField struct {
+					NestedField2 struct {
+						Field2 string `tag:"field" override:"override_field"`
+					} `tag:"nested2"`
+				} `tag:"nested"`
+			}{},
+
+			ResultStruct: &struct {
+				NestedField struct {
+					NestedField2 struct {
+						Field2 string `tag:"field" override:"override_field"`
+					} `tag:"nested2"`
+				} `tag:"nested"`
+			}{
+				NestedField: struct {
+					NestedField2 struct {
+						Field2 string `tag:"field" override:"override_field"`
+					} `tag:"nested2"`
+				}{
+					NestedField2: struct {
+						Field2 string `tag:"field" override:"override_field"`
+					}{
+						Field2: "overridevalue",
+					},
+				},
+			},
+		},
+		{
+			It: "tries to fetch env with multiple override tag names, first override tag takes precendence",
+
+			Prefix:       "prefix",
+			TagName:      "tag",
+			OverrideName: "override",
+
+			EnvValues: map[string]interface{}{
+				"OVERRIDE_FIELD1_CAPS": "field1value",
+				"override_field2":      "first",
+				"OVERRIDE_FIELD2_CAPS": "second",
+			},
+
+			TestStruct: &struct {
+				Field1 string `tag:"field1" override:"override_field1,OVERRIDE_FIELD1_CAPS"`
+				Field2 string `tag:"field2" override:"override_field2,OVERRIDE_FIELD2_CAPS"`
+			}{},
+
+			ResultStruct: &struct {
+				Field1 string `tag:"field1" override:"override_field1,OVERRIDE_FIELD1_CAPS"`
+				Field2 string `tag:"field2" override:"override_field2,OVERRIDE_FIELD2_CAPS"`
+			}{
+				Field1: "field1value",
+				Field2: "first",
+			},
+		},
 	} {
 		s.Run(t.It, func() {
-			env := envstruct.New(t.Prefix, t.TagName, envstruct.Parser{Delimiter: t.Delimiter, Unmarshaler: yaml.Unmarshal})
+			env := envstruct.New(t.Prefix, t.TagName, t.OverrideName, envstruct.Parser{Delimiter: t.Delimiter, Unmarshaler: yaml.Unmarshal})
 
 			for name, value := range t.EnvValues {
 				os.Setenv(name, fmt.Sprintf("%v", value))
@@ -386,6 +475,8 @@ func (s *EnvstructSuite) TestEnvstruct() {
 			s.NoError(err)
 
 			assert.Equal(s.T(), t.TestStruct, t.ResultStruct, "the struct should have correct env values populated")
+
+			os.Clearenv()
 		})
 	}
 }

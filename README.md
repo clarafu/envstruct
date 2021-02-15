@@ -9,7 +9,7 @@ given. An example of it's usage is that you would pass in the following struct:
 
 ```go
 type MyStruct struct {
-  Field string `tag: "field"`
+  Field string `tag:"field"`
 }
 ```
 
@@ -35,8 +35,8 @@ For example, it supports the following struct:
 ```go
 type MyStruct struct {
   Nested struct {
-    Field string `tag: "field"`
-  } `tag: "nested"`
+    Field string `tag:"field"`
+  } `tag:"nested"`
 }
 ```
 
@@ -50,9 +50,10 @@ You can use `envstruct` by first configuring a few settings.
 | Settings      | Desciptions           
 | ------------- |-------------
 | Prefix        | Optional and if set, is used as the prefix to any environment variable fetching. For example, if we are fetching env string `FIELD1` and we have prefix set to `BAR`, then `BAR_FIELD1` will be used to fetch the environment variable.
-| TagName       | Used for fetching the tag value from the field.     
+| TagName       | Used for fetching the tag value from the field. A built up string using this tag value will be used to fetch the environment variable. Can be placed on a struct or field.
 | Delimiter     | Used as the separater for multiple values within a struct or map. It is defaulted to a comma `,`. It is used so that in the environment variable, there can exist slices such as `PREFIX_FIELD=foo,bar`.
 | Unmarshaler   | Used to unmarshal the string into the field types. For example, you can pass in a `yaml` or `json` unmarshaler.
+| OverrideName  | Optional and if set, is used to fetch the tag value from the field that will be used to fetch the environment variable. It is used to override the string built using the `TagName`. The tag value from `OverrideName` will be used directly and will not be modified with upper casing, prefixing or attaching nested struct tag values.
 
 Then you call `FetchEnv` off of `envstruct`.
 
@@ -109,7 +110,7 @@ A simple example is a basic struct with a field:
 
 ```go
 type MyStruct struct {
-  FieldName string `tag: "field"`
+  FieldName string `tag:"field"`
 }
 ```
 
@@ -130,11 +131,57 @@ For example,
 type MyStruct struct {
   Foo struct {
     Bar struct {
-      FieldName string `tag: "field"`
+      FieldName string `tag:"field"`
     }
-  } `tag: "foo"`
+  } `tag:"foo"`
 }
 ```
 
 The example above would result in the string `FOO_BAR` to be used to fetch the
-environment variable for `MyStruct.Foo.Bar.FieldName`.
+environment variable for `MyStruct.Foo.Bar.FieldName`. If the `Prefix` was set
+to `PREFIX`, then `PREFIX_FOO_BAR` will be used to fetch the environment
+variable for `MyStruct.Foo.Bar.FieldName`.
+
+## Overriding the tag
+
+The string that is built up using the `TagName` which is used to fetch the
+environment variable can be overriden using the `OverrideName` field. If you
+configure the `OverrideName` field, any field that contains a tag that matches
+the value set in `OverrideName` will use the value of that tag to fetch its
+environment variable.
+
+The value of the tag matching the `OverrideName` will be used directly, that
+means it will not be uppercased, appended with nested struct tags or prefixed
+like how the regular built up string using the `TagName` is.
+
+For example, in the example below we have set the `OverrideName` to be value
+`override`.
+
+```go
+type MyStruct struct {
+  Foo struct {
+    Bar struct {
+      FieldName string `tag:"field" override:"override_field"`
+    }
+  } `tag:"foo"`
+}
+```
+
+Since `FieldName` has a tag `override`, the value of the `override` value will
+be used to fetch the environment variable. In the example, `override_field`
+will be used to fetch the environment variable, rather than `FOO_BAR` which
+would have been used if the field did not contain the `override` tag.
+
+A field can have multiple override tag values that are comma separated. For
+example, 
+
+```go
+type MyStruct struct {
+  FieldName string `tag:"field" override:"O_FIELD1,O_FIELD2"`
+}
+```
+
+`O_FIELD1` and `O_FIELD2` will be used to try and fetch the environment
+variable for `FieldName`. It is ordered in terms of precedence from left to
+right, so if a value is fetched from `O_FIELD1` then we will use that value and
+not try to fetch using `O_FIELD2`.

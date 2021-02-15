@@ -18,6 +18,12 @@ type Envstruct struct {
 	// TagName is used for fetching the tag value from the field.
 	TagName string
 
+	// Override is optional and if set, it will be used as the tag name that . This
+	// override string will be used directly without any modifications such as
+	// upper casing, appending nested tag values or adding the prefix. You can
+	// pass in multiple of the override tags and envstruct will try all of them.
+	OverrideName string
+
 	// Parser includes the custom unmarshaler that will be used to unmarshal the
 	// values into the fields. The only thing that envstruct does itself is unwrap
 	// slices and maps but the underlying values within those types are parsed by
@@ -25,10 +31,11 @@ type Envstruct struct {
 	Parser Parser
 }
 
-func New(prefix, tagName string, parser Parser) Envstruct {
+func New(prefix, tagName string, overrideName string, parser Parser) Envstruct {
 	return Envstruct{
-		Prefix:  prefix,
-		TagName: tagName,
+		Prefix:       prefix,
+		TagName:      tagName,
+		OverrideName: overrideName,
 
 		Parser: parser,
 	}
@@ -72,8 +79,8 @@ func (e Envstruct) FetchEnv(object interface{}) error {
 func (e Envstruct) extractTag(envNameBuilder []string, fieldDescription reflect.StructField, fieldValue reflect.Value) error {
 	// Fetch the tag value from the struct and append it to the string that will
 	// be used to fetch the env value
-	tagValue := fieldDescription.Tag.Get(e.TagName)
-	if tagValue != "" {
+	tagValue, found := fieldDescription.Tag.Lookup(e.TagName)
+	if found {
 		envNameBuilder = append(envNameBuilder, strings.ToUpper(tagValue))
 	}
 
@@ -88,12 +95,29 @@ func (e Envstruct) extractTag(envNameBuilder []string, fieldDescription reflect.
 	} else {
 		// If the field is not a struct, fetch the environment variable value using
 		// the built up string
-		value := os.Getenv(strings.Join(envNameBuilder, "_"))
+		envNames := []string{strings.Join(envNameBuilder, "_")}
 
-		// Parse the fetched env value and set it on the field
-		err := e.Parser.ParseInto(fieldValue.Addr().Interface(), value)
-		if err != nil {
-			return err
+		// If there is an override tag set, try to see if this field has the
+		// override set. If it does then use that value to fetch the env with
+		if e.OverrideName != "" {
+			if override, found := fieldDescription.Tag.Lookup(e.OverrideName); found {
+				envNames = strings.Split(override, ",")
+			}
+		}
+
+		// Fetch the env
+		for _, envName := range envNames {
+			value := os.Getenv(envName)
+
+			// If the env is found, parse the fetched env value and set it on the field
+			if value != "" {
+				err := e.Parser.ParseInto(fieldValue.Addr().Interface(), value)
+				if err != nil {
+					return err
+				}
+
+				break
+			}
 		}
 	}
 
