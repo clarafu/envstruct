@@ -107,7 +107,7 @@ func (e Envstruct) extractTag(envNameBuilder []string, fieldDescription reflect.
 
 		// Fetch the env
 		for _, envName := range envNames {
-			value := os.Getenv(envName)
+			value := os.Getenv(strings.TrimSpace(envName))
 
 			// If the env is found, parse the fetched env value and set it on the field
 			if value != "" {
