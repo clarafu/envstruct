@@ -54,11 +54,20 @@ You can use `envstruct` by first configuring a few settings.
 | Delimiter     | Used as the separater for multiple values within a struct or map. It is defaulted to a comma `,`. It is used so that in the environment variable, there can exist slices such as `PREFIX_FIELD=foo,bar`.
 | Unmarshaler   | Used to unmarshal the string into the field types. For example, you can pass in a `yaml` or `json` unmarshaler.
 | OverrideName  | Optional and if set, is used to fetch the tag value from the field that will be used to fetch the environment variable. It is used to override the string built using the `TagName`. The tag value from `OverrideName` will be used directly and will not be modified with upper casing, prefixing or attaching nested struct tag values.
+| IgnoreTagName | Optional and if set, will be used to recognize when a tag should not be included in the built up string for fetching the environment value.
 
 Then you call `FetchEnv` off of `envstruct`.
 
 ```go
-env := envstruct.New("prefix", "tag", envstruct.Parser{Delimiter: ",", Unmarshaler: yaml.Unmarshal})
+env := envstruct.Envstruct{
+  Prefix: "prefix",
+  TagName: "tag",
+
+  Parser: envstruct.Parser{
+    Delimiter: ",",
+    Unmarshaler: yaml.Unmarshal,
+  },
+}
 
 type Example struct {
   Field string `tag:"field"`
@@ -148,7 +157,8 @@ The string that is built up using the `TagName` which is used to fetch the
 environment variable can be overriden using the `OverrideName` field. If you
 configure the `OverrideName` field, any field that contains a tag that matches
 the value set in `OverrideName` will use the value of that tag to fetch its
-environment variable.
+environment variable. The override tag will only be recognized on fields on a
+struct and not nested structs.
 
 The value of the tag matching the `OverrideName` will be used directly, that
 means it will not be uppercased, appended with nested struct tags or prefixed
@@ -185,3 +195,32 @@ type MyStruct struct {
 variable for `FieldName`. It is ordered in terms of precedence from left to
 right, so if a value is fetched from `O_FIELD1` then we will use that value and
 not try to fetch using `O_FIELD2`.
+
+## Ignoring certain tags
+
+You can ignore certain tags so that they will not be included in the built up
+string for fetching the environment value using the `IgnoreTagName`
+configuration. The string that it is set to a `true` value will be used to find
+when a field should not be included. 
+
+Typically this will be used for nested struct tags, where you do not want to
+include the nested tag value in the environment variable lookup.
+
+An example below with the `IgnoreTagName` set to `ignore_env` and `TagName` set
+to `tag`:
+
+```go
+type MyStruct struct {
+  Foo struct {
+    Bar struct {
+      FieldName string `tag:"field"`
+    } `tag:"bar" ignore_env:"true"`
+  } `tag:"foo"`
+}
+```
+
+The example above would result in an environment variable fetch using
+`FOO_FIELD` where it does not include `BAR` within the built up string.
+
+If the `ignore_env` was set to `false`, then the tag name will be included in
+the environment variable string.

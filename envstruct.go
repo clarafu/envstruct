@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"reflect"
+	"strconv"
 	"strings"
 )
 
@@ -24,21 +25,16 @@ type Envstruct struct {
 	// pass in multiple of the override tags and envstruct will try all of them.
 	OverrideName string
 
+	// IgnoreTagName is optional and if set, it will find this key in the tags of
+	// each field. If the key is found in the tag of the field, it will ignore
+	// the TagName that is set on the field.
+	IgnoreTagName string
+
 	// Parser includes the custom unmarshaler that will be used to unmarshal the
 	// values into the fields. The only thing that envstruct does itself is unwrap
 	// slices and maps but the underlying values within those types are parsed by
 	// the unmarshaler.
 	Parser Parser
-}
-
-func New(prefix, tagName string, overrideName string, parser Parser) Envstruct {
-	return Envstruct{
-		Prefix:       prefix,
-		TagName:      tagName,
-		OverrideName: overrideName,
-
-		Parser: parser,
-	}
 }
 
 // FetchEnv will fetch environment variables and appropriately set them into
@@ -81,7 +77,26 @@ func (e Envstruct) extractTag(envNameBuilder []string, fieldDescription reflect.
 	// be used to fetch the env value
 	tagValue, found := fieldDescription.Tag.Lookup(e.TagName)
 	if found {
-		envNameBuilder = append(envNameBuilder, strings.ToUpper(tagValue))
+		includeTag := true
+
+		if e.IgnoreTagName != "" {
+			ignore, found := fieldDescription.Tag.Lookup(e.IgnoreTagName)
+
+			if found {
+				ignoreBool, err := strconv.ParseBool(ignore)
+				if err != nil {
+					return err
+				}
+
+				if ignoreBool {
+					includeTag = false
+				}
+			}
+		}
+
+		if includeTag {
+			envNameBuilder = append(envNameBuilder, strings.ToUpper(tagValue))
+		}
 	}
 
 	// If the field is a struct then loop through each field and recurse

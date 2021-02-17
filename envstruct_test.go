@@ -27,10 +27,11 @@ type EnvstructSuite struct {
 type EnvstructTest struct {
 	It string
 
-	Prefix       string
-	TagName      string
-	OverrideName string
-	Delimiter    string
+	Prefix        string
+	TagName       string
+	OverrideName  string
+	IgnoreTagName string
+	Delimiter     string
 
 	EnvValues map[string]interface{}
 
@@ -463,9 +464,94 @@ func (s *EnvstructSuite) TestEnvstruct() {
 				Field2: "first",
 			},
 		},
+		{
+			It: "ignores tags that are labelled with ignore tag name",
+
+			Prefix:        "prefix",
+			TagName:       "tag",
+			IgnoreTagName: "ignore",
+
+			EnvValues: map[string]interface{}{
+				"PREFIX_NESTED_FIELD": "ignoretrue",
+			},
+
+			TestStruct: &struct {
+				NestedField struct {
+					NestedField2 struct {
+						Field2 string `tag:"field"`
+					} `tag:"nested2" ignore:"true"`
+				} `tag:"nested"`
+			}{},
+
+			ResultStruct: &struct {
+				NestedField struct {
+					NestedField2 struct {
+						Field2 string `tag:"field"`
+					} `tag:"nested2" ignore:"true"`
+				} `tag:"nested"`
+			}{
+				NestedField: struct {
+					NestedField2 struct {
+						Field2 string `tag:"field"`
+					} `tag:"nested2" ignore:"true"`
+				}{
+					NestedField2: struct {
+						Field2 string `tag:"field"`
+					}{
+						Field2: "ignoretrue",
+					},
+				},
+			},
+		},
+		{
+			It: "applies tags that are labelled with ignore false",
+
+			Prefix:        "prefix",
+			TagName:       "tag",
+			IgnoreTagName: "ignore",
+
+			EnvValues: map[string]interface{}{
+				"PREFIX_NESTED_NESTED2": "ignorefalse",
+			},
+
+			TestStruct: &struct {
+				NestedField struct {
+					NestedField2 struct {
+						Field2 string `tag:"field" ignore:"true"`
+					} `tag:"nested2" ignore:"false"`
+				} `tag:"nested"`
+			}{},
+
+			ResultStruct: &struct {
+				NestedField struct {
+					NestedField2 struct {
+						Field2 string `tag:"field" ignore:"true"`
+					} `tag:"nested2" ignore:"false"`
+				} `tag:"nested"`
+			}{
+				NestedField: struct {
+					NestedField2 struct {
+						Field2 string `tag:"field" ignore:"true"`
+					} `tag:"nested2" ignore:"false"`
+				}{
+					NestedField2: struct {
+						Field2 string `tag:"field" ignore:"true"`
+					}{
+						Field2: "ignorefalse",
+					},
+				},
+			},
+		},
 	} {
 		s.Run(t.It, func() {
-			env := envstruct.New(t.Prefix, t.TagName, t.OverrideName, envstruct.Parser{Delimiter: t.Delimiter, Unmarshaler: yaml.Unmarshal})
+			env := envstruct.Envstruct{
+				Prefix:        t.Prefix,
+				TagName:       t.TagName,
+				OverrideName:  t.OverrideName,
+				IgnoreTagName: t.IgnoreTagName,
+
+				Parser: envstruct.Parser{Delimiter: t.Delimiter, Unmarshaler: yaml.Unmarshal},
+			}
 
 			for name, value := range t.EnvValues {
 				os.Setenv(name, fmt.Sprintf("%v", value))
