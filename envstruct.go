@@ -136,10 +136,12 @@ func (e Envstruct) extractTag(envNameBuilder []string, fieldDescription reflect.
 			}
 		}
 	} else if fieldDescription.Type.Kind() == reflect.Ptr && fieldDescription.Type.Elem().Kind() == reflect.Struct {
-		for i := 0; i < fieldValue.Elem().NumField(); i++ {
-			err := e.extractTag(envNameBuilder, fieldValue.Elem().Type().Field(i), fieldValue.Elem().Field(i))
-			if err != nil {
-				return err
+		if !fieldValue.IsNil() {
+			for i := 0; i < fieldValue.Elem().NumField(); i++ {
+				err := e.extractTag(envNameBuilder, fieldValue.Elem().Type().Field(i), fieldValue.Elem().Field(i))
+				if err != nil {
+					return err
+				}
 			}
 		}
 	} else {
