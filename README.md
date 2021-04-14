@@ -55,6 +55,7 @@ You can use `envstruct` by first configuring a few settings.
 | Unmarshaler   | Used to unmarshal the string into the field types. For example, you can pass in a `yaml` or `json` unmarshaler.
 | OverrideName  | Optional and if set, is used to fetch the tag value from the field that will be used to fetch the environment variable. It is used to override the string built using the `TagName`. The tag value from `OverrideName` will be used directly and will not be modified with upper casing, prefixing or attaching nested struct tag values.
 | IgnoreTagName | Optional and if set, will be used to recognize when a tag should not be included in the built up string for fetching the environment value.
+| StripValue    | Optional and if set true, envstruct will remove all characters including and after the first comma in the tag value that matches the `TagName`. The purpose of this is to allow the reuse of tags with other libraries, for example, to reuse yaml tags that might have an `,omitempty` value appended to the tag value like `yaml:"value,omitempty"`.
 
 Then you call `FetchEnv` off of `envstruct`.
 

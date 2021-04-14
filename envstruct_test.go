@@ -32,6 +32,7 @@ type EnvstructTest struct {
 	OverrideName  string
 	IgnoreTagName string
 	Delimiter     string
+	StripValue    bool
 
 	EnvValues map[string]interface{}
 
@@ -542,6 +543,65 @@ func (s *EnvstructSuite) TestEnvstruct() {
 				},
 			},
 		},
+		{
+			It: "strips value after comma if StripValue is set to true",
+
+			Prefix:     "prefix",
+			TagName:    "tag",
+			StripValue: true,
+
+			EnvValues: map[string]interface{}{
+				"PREFIX_FIELD1": "value",
+				"PREFIX_FIELD3": 3,
+				"PREFIX_FIELD4": "nested_value",
+			},
+
+			TestStruct: &struct {
+				Field1      string `tag:"field1,omitempty"`
+				Field2      string
+				Field3      int `tag:"field3"`
+				NestedField struct {
+					Field4 string `tag:"field4,omitempty"`
+				} `tag:",inline"`
+			}{},
+
+			ResultStruct: &struct {
+				Field1      string `tag:"field1,omitempty"`
+				Field2      string
+				Field3      int `tag:"field3"`
+				NestedField struct {
+					Field4 string `tag:"field4,omitempty"`
+				} `tag:",inline"`
+			}{
+				Field1: "value",
+				Field3: 3,
+				NestedField: struct {
+					Field4 string `tag:"field4,omitempty"`
+				}{
+					Field4: "nested_value",
+				},
+			},
+		},
+		{
+			It: "does not strip value if StripValue is false",
+
+			Prefix:  "prefix",
+			TagName: "tag",
+
+			EnvValues: map[string]interface{}{
+				"PREFIX_FIELD1,OMITEMPTY": "value",
+			},
+
+			TestStruct: &struct {
+				Field1 string `tag:"field1,omitempty"`
+			}{},
+
+			ResultStruct: &struct {
+				Field1 string `tag:"field1,omitempty"`
+			}{
+				Field1: "value",
+			},
+		},
 	} {
 		s.Run(t.It, func() {
 			env := envstruct.Envstruct{
@@ -549,6 +609,7 @@ func (s *EnvstructSuite) TestEnvstruct() {
 				TagName:       t.TagName,
 				OverrideName:  t.OverrideName,
 				IgnoreTagName: t.IgnoreTagName,
+				StripValue:    t.StripValue,
 
 				Parser: envstruct.Parser{Delimiter: t.Delimiter, Unmarshaler: yaml.Unmarshal},
 			}

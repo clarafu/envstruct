@@ -30,6 +30,21 @@ type Envstruct struct {
 	// the TagName that is set on the field.
 	IgnoreTagName string
 
+	// StripValue is default to false. When it is on it will strip any values
+	// after a comma value within the tag that matches the TagName. This is to
+	// help users that want to reuse tags for multiple purposes, such as yaml and
+	// envstruct. For ex. there can be a struct
+	//
+	// type Foo struct {
+	//   Bar string `yaml:"bar,omitempty"`
+	// }
+	//
+	// And since you want to reuse the `yaml` tag for both yaml and envstruct by
+	// passing "yaml" into envstruct as the TagName, you want envstruct to ignore
+	// the ",omitempty" portion of the tag value and just use "bar" as the env
+	// value.
+	StripValue bool
+
 	// Parser includes the custom unmarshaler that will be used to unmarshal the
 	// values into the fields. The only thing that envstruct does itself is unwrap
 	// slices and maps but the underlying values within those types are parsed by
@@ -95,7 +110,20 @@ func (e Envstruct) extractTag(envNameBuilder []string, fieldDescription reflect.
 		}
 
 		if includeTag {
-			envNameBuilder = append(envNameBuilder, strings.ToUpper(tagValue))
+			// Removes any string after a comma within the tag value
+			if e.StripValue {
+				// Split up the tag value string into a slice where each element is
+				// separated by a comma
+				strippedTagValueSlice := strings.SplitAfter(tagValue, ",")
+
+				// Remove the comma from the first value within the slice (which is the
+				// tag value we are looking for)
+				tagValue = strings.TrimRight(strippedTagValueSlice[0], ",")
+			}
+
+			if tagValue != "" {
+				envNameBuilder = append(envNameBuilder, strings.ToUpper(tagValue))
+			}
 		}
 	}
 
