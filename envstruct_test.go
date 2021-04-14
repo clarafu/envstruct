@@ -602,6 +602,38 @@ func (s *EnvstructSuite) TestEnvstruct() {
 				Field1: "value",
 			},
 		},
+		{
+			It: "traverses structs that are a pointer",
+
+			Prefix:  "prefix",
+			TagName: "tag",
+
+			EnvValues: map[string]interface{}{
+				"PREFIX_INITIALIZED_FIELD2": "field2_value",
+			},
+
+			TestStruct: &struct {
+				Initialized *struct {
+					Field2 string `tag:"field2"`
+				} `tag:"initialized"`
+			}{
+				Initialized: &struct {
+					Field2 string `tag:"field2"`
+				}{},
+			},
+
+			ResultStruct: &struct {
+				Initialized *struct {
+					Field2 string `tag:"field2"`
+				} `tag:"initialized"`
+			}{
+				Initialized: &struct {
+					Field2 string `tag:"field2"`
+				}{
+					Field2: "field2_value",
+				},
+			},
+		},
 	} {
 		s.Run(t.It, func() {
 			env := envstruct.Envstruct{

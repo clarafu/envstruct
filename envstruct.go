@@ -135,6 +135,13 @@ func (e Envstruct) extractTag(envNameBuilder []string, fieldDescription reflect.
 				return err
 			}
 		}
+	} else if fieldDescription.Type.Kind() == reflect.Ptr && fieldDescription.Type.Elem().Kind() == reflect.Struct {
+		for i := 0; i < fieldValue.Elem().NumField(); i++ {
+			err := e.extractTag(envNameBuilder, fieldValue.Elem().Type().Field(i), fieldValue.Elem().Field(i))
+			if err != nil {
+				return err
+			}
+		}
 	} else {
 		// If the field is not a struct, fetch the environment variable value using
 		// the built up string

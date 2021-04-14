@@ -74,9 +74,9 @@ type Example struct {
   Field string `tag:"field"`
 }
 
-mystruct := &Example{}
+mystruct := Example{}
 
-err := env.FetchEnv(mystruct)
+err := env.FetchEnv(&mystruct)
 if err != nil {
   return nil
 }
@@ -225,3 +225,21 @@ The example above would result in an environment variable fetch using
 
 If the `ignore_env` was set to `false`, then the tag name will be included in
 the environment variable string.
+
+## Important things to note!
+
+If there is a nested struct that is a pointer, envstruct will only traverse it
+if it is already initialized. For example, if you have `MyStruct` with a nested
+`Foo` struct that is of a pointer type
+
+```go
+type MyStruct struct {
+  Foo *struct {
+    FieldName string `tag:"field"`
+  } `tag:"foo"`
+}
+```
+
+`Foo` will need to be initialized before it is passed into `envstruct` for it
+to be able to traverse through the fields within the nested pointer struct.
+This is because we don't want to initialize pointers within `envstruct`.
